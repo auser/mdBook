@@ -54,6 +54,16 @@ pub trait Preprocessor {
     /// Get the `Preprocessor`'s name.
     fn name(&self) -> &str;
 
+    /// Configure the preprocessor which allows for the preprocessor
+    /// to modify the `book.toml` (in memory, not on disk)
+    /// This is useful for preprocessors that want to give the
+    /// runner a configuration update
+    ///
+    /// By default returns the context passed in
+    fn config(&self, ctx: PreprocessorContext, _book: &Book) -> Result<PreprocessorContext> {
+        Ok(ctx)
+    }
+
     /// Run this `Preprocessor`, allowing it to update the book before it is
     /// given to a renderer.
     fn run(&self, ctx: &PreprocessorContext, book: Book) -> Result<Book>;

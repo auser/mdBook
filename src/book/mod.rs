@@ -184,12 +184,21 @@ impl MDBook {
     /// Run the entire build process for a particular [`Renderer`].
     pub fn execute_build_process(&self, renderer: &dyn Renderer) -> Result<()> {
         let mut preprocessed_book = self.book.clone();
-        let preprocess_ctx = PreprocessorContext::new(
+        let mut preprocess_ctx = PreprocessorContext::new(
             self.root.clone(),
             self.config.clone(),
             renderer.name().to_string(),
         );
 
+        // Run config first
+        for preprocessor in &self.preprocessors {
+            if preprocessor_should_run(&**preprocessor, renderer, &self.config) {
+                debug!("Running config for {} preprocessor", preprocessor.name());
+                preprocess_ctx = preprocessor.config(preprocess_ctx, &preprocessed_book)?;
+            }
+        }
+
+        // Run preprocessor next
         for preprocessor in &self.preprocessors {
             if preprocessor_should_run(&**preprocessor, renderer, &self.config) {
                 debug!("Running the {} preprocessor.", preprocessor.name());
@@ -203,7 +212,7 @@ impl MDBook {
         let mut render_context = RenderContext::new(
             self.root.clone(),
             preprocessed_book,
-            self.config.clone(),
+            preprocess_ctx.config.clone(),
             build_dir,
         );
         render_context

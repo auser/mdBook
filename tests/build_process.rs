@@ -15,6 +15,7 @@ struct Spy(Arc<Mutex<Inner>>);
 struct Inner {
     run_count: usize,
     rendered_with: Vec<String>,
+    custom_message: String,
 }
 
 impl Preprocessor for Spy {
@@ -22,10 +23,16 @@ impl Preprocessor for Spy {
         "dummy"
     }
 
+    fn config(&self, mut ctx: PreprocessorContext, _book: &Book) -> Result<PreprocessorContext> {
+        ctx.config.set("custom", String::from("variable"))?;
+        Ok(ctx)
+    }
+
     fn run(&self, ctx: &PreprocessorContext, book: Book) -> Result<Book> {
         let mut inner = self.0.lock().unwrap();
         inner.run_count += 1;
         inner.rendered_with.push(ctx.renderer.clone());
+        inner.custom_message = ctx.config.get("custom").unwrap().to_string();
         Ok(book)
     }
 }
@@ -60,6 +67,21 @@ fn mdbook_runs_preprocessors() {
         "html", inner.rendered_with[0],
         "We should have been run with the default HTML renderer"
     );
+}
+
+#[test]
+fn mdbook_runs_preprocessors_config() {
+    let spy: Arc<Mutex<Inner>> = Default::default();
+
+    let temp = DummyBook::new().build().unwrap();
+    let cfg = Config::default();
+
+    let mut book = MDBook::load_with_config(temp.path(), cfg).unwrap();
+    book.with_preprocessor(Spy(Arc::clone(&spy)));
+    book.build().unwrap();
+
+    let inner = spy.lock().unwrap();
+    assert_eq!(inner.custom_message.as_str(), "\"variable\"");
 }
 
 #[test]
